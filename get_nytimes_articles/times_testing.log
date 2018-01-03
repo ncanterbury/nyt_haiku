@@ -1,0 +1,6 @@
+INFO:root:Starting
+ERROR:root:Unexpected error: <class 'urllib2.HTTPError'>
+INFO:root:Finished
+INFO:root:Starting
+ERROR:root:Unexpected error: <class 'urllib2.HTTPError'>
+INFO:root:Finished
