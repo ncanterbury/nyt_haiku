@@ -129,6 +129,8 @@ def is_haiku(text):
     lines = []
     d = cmudict.dict()
 
+    syllable_list = []
+
     for word in words:
         print ""
         print word
@@ -143,12 +145,21 @@ def is_haiku(text):
         else:
             return False 
 
+        # keep track of syllable counts for each word 
+        # for later use in composing tweet 
+        individual_syl = [word]
+        syl_count = 0
         if flag == -1:
             for pos in check[0]:
                 if has_numbers(pos):
+                    syl_count += 1
                     word_syl_count += 1
         else:
             word_syl_count += check
+            syl_count = check
+        
+        individual_syl.append(syl_count)
+        syllable_list.append(individual_syl)
 
         syl_count += word_syl_count
         print syl_count 
@@ -192,22 +203,17 @@ def check_haiku(month_urls, used_urls):
         if count == 5:
             break
         if url not in used_urls:
-            article_text = get_text('https://www.nytimes.com/2017/06/02/style/modern-love-making-a-marriage-magically-tidy.html')
+            article_text = get_text('https://www.nytimes.com/2017/05/26/dining/cheesy-oniony-gratin-recipe-video.html')
+            #article_text = get_text(url)
             for sentence in article_text:
                 ret = is_haiku(sentence)
-                if ret:
+                if ret and (len(ret) <= 140):
                     print "FOUND HAIKU"
-                    return ret
-
+                    return ret.split(" ")
             count += 1
     
-    for i in range(5):
-        print month_urls[i]
-        print month_urls[i] in used_urls
-
-    print 'is used urls'
-    print used_urls
-
+    # no haiku found in remaining urls for month 
+    return False 
 
 def main():
 
@@ -237,6 +243,8 @@ def main():
 
     found_haiku = check_haiku(month_urls, used_urls)
     print found_haiku
+    print len(found_haiku)
+    haiku_len = 0
     
 
 if __name__ == "__main__":
