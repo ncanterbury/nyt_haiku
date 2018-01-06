@@ -100,6 +100,7 @@ def get_text(url):
                     print sentence
 
     print "this is ret"
+    print ret 
     return ret
 
 def is_haiku(text):
@@ -110,6 +111,7 @@ def is_haiku(text):
     # maybe will be fixed 
 
     text_orig = text
+    text_orig_split = text.split(" ")
     '''
     try:
         text_orig = str(text)  
@@ -118,10 +120,7 @@ def is_haiku(text):
     '''
     text = text.lower()
     print text
-    text = re.sub(r"'ve", "", text)
-    text = re.sub(r"n't", " not", text)
-    print text
-    words = nltk.wordpunct_tokenize(re.sub('[^a-zA-Z_ ]', '',text))
+    words = nltk.wordpunct_tokenize(re.sub('[^a-zA-Z_\' ]', '',text))
 
     syl_count = 0
     word_count = 0
@@ -131,6 +130,7 @@ def is_haiku(text):
 
     syllable_list = []
 
+    word_index_count = 0
     for word in words:
         print ""
         print word
@@ -147,18 +147,19 @@ def is_haiku(text):
 
         # keep track of syllable counts for each word 
         # for later use in composing tweet 
-        individual_syl = [word]
-        syl_count = 0
+        individual_syl = [text_orig_split[word_index_count]]
+        individual_syl_count = 0
         if flag == -1:
             for pos in check[0]:
                 if has_numbers(pos):
-                    syl_count += 1
+                    individual_syl_count += 1
                     word_syl_count += 1
         else:
             word_syl_count += check
-            syl_count = check
+            individual_syl_count = check
         
-        individual_syl.append(syl_count)
+        print word_syl_count
+        individual_syl.append(individual_syl_count)
         syllable_list.append(individual_syl)
 
         syl_count += word_syl_count
@@ -177,22 +178,33 @@ def is_haiku(text):
                 return False 
         else:
             if syl_count == 17:
-                print 'running here'
-                print word
-                print text_orig[-1]
-                print text_orig.split(" ")[-1]
-                print (word+"." == text_orig[-1])
                 if word+"." != text_orig.split(" ")[-1] \
                         and word+'."' != text_orig.split(" ")[-1]: 
                     return False 
                 else:
-                    return text_orig
+                    return syllable_list
             elif syl_count > 17:
                 return False 
+        word_index_count += 1
 
     print words 
 
-def check_haiku(month_urls, used_urls):
+def get_headline(url):
+    page = requests.get(url)
+    tree = html.fromstring(page.content)
+    headline = tree.xpath('//*[contains(@id,"headline")]/text()')
+    if headline == []:
+        headline = tree.xpath('//*[contains(@class,"headline")]/text()')
+    print 'this is headline'
+    print headline 
+    return headline[0]
+
+def add_used_url(new_url, used_urls):
+    with open(used_urls, 'a') as write_file:
+        write_file.write(new_url+"\n")
+
+def check_haiku(month_urls, used_urls, used_urls_csv):
+    print 'check haiku'
     '''
     Get text from unused/unchecked article, call is_haiku to see if haiku
     in text. text processing done by get_text
@@ -203,13 +215,20 @@ def check_haiku(month_urls, used_urls):
         if count == 5:
             break
         if url not in used_urls:
-            article_text = get_text('https://www.nytimes.com/2017/05/26/dining/cheesy-oniony-gratin-recipe-video.html')
+            add_used_url(url, used_urls_csv)
+            #check_it = 'https://www.nytimes.com/2017/06/23/well/family/the-friendships-that-hold-us-safely-in-their-keep.html'
             #article_text = get_text(url)
+            article_text = get_text(url)
             for sentence in article_text:
                 ret = is_haiku(sentence)
-                if ret and (len(ret) <= 140):
-                    print "FOUND HAIKU"
-                    return ret.split(" ")
+                print 'this is ret'
+                print ret 
+                if ret and (len(ret) <= 137):
+                    if (get_headline(url) != []) and \
+                            (len(get_headline(url)) + len(ret) + 4) <= 140:
+                        print "FOUND HAIKU"
+                        combine = [get_headline(url), ret] 
+                        return combine 
             count += 1
     
     # no haiku found in remaining urls for month 
@@ -217,7 +236,7 @@ def check_haiku(month_urls, used_urls):
 
 def main():
 
-    config = SafeConfigParser()
+    config = SafeConfigParser() 
     script_dir = os.path.dirname(__file__)
     config_file = os.path.join(script_dir, 'settings.cfg')
     config.read(config_file)
@@ -233,15 +252,13 @@ def main():
 
     #logging.info("Starting")
 
-    month_urls = ['https://www.nytimes.com/2018/01/02/science/donkeys-africa-china-ejiao.html', 'https://www.nytimes.com/2018/01/02/learning/new-years-resolutions.html', 'https://www.nytimes.com/2018/01/02/health/fake-news-conservative-liberal.html', 'https://www.nytimes.com/2018/01/02/world/asia/kim-jong-un-suit-north-korea.html', 'https://www.nytimes.com/2018/01/02/sports/college-football-playoff-alabama-clemson.html', 'https://www.nytimes.com/2018/01/02/learning/02WODLN.html', 'https://www.nytimes.com/2018/01/02/briefing/iran-north-korea-times-up.html', 'https://www.nytimes.com/2018/01/02/sports/soccer/premier-league-top-six.html', 'https://www.nytimes.com/2018/01/01/pageoneplus/no-corrections-january-2-2018.html', 'https://www.nytimes.com/2018/01/01/todayspaper/quotation-of-the-day-skittish-and-skulking-californias-fire-cats-prove-hard-to-corral.html', 'https://www.nytimes.com/2018/01/01/sports/isaiah-thomas-cavaliers.html', 'https://www.nytimes.com/2018/01/01/crosswords/daily-puzzle-2018-01-02.html', 'https://www.nytimes.com/2018/01/01/business/gretchen-carlson-miss-america.html', 'https://www.nytimes.com/2018/01/01/opinion/the-retreat-to-tribalism.html', 'https://www.nytimes.com/2018/01/01/sports/college-football-playoff-georgia-beats-oklahoma.html', 'https://www.nytimes.com/2018/01/01/opinion/bill-de-blasio-inauguration.html', 'https://www.nytimes.com/2018/01/01/science/ukraine-space-science.html', 'https://www.nytimes.com/2018/01/01/arts/dance/peter-martins-resigns-ballet.html', 'https://www.nytimes.com/2018/01/01/business/dealbook/biggest-deals-2017.html', 'https://www.nytimes.com/2018/01/01/world/americas/brazil-prison-riot.html', 'https://www.nytimes.com/2018/01/01/nyregion/park-or-playground-semantics-dispute-illuminates-preservationists-fight.html', 'https://www.nytimes.com/2018/01/01/nyregion/at-de-blasio-inaugural-speeches-by-two-who-might-replace-him.html', 'https://www.nytimes.com/2018/01/01/nyregion/weather-and-visiting-senator-steal-the-show-at-de-blasio-inauguration.html', 'https://www.nytimes.com/2018/01/01/world/americas/costa-rica-plane-crash.html', 'https://www.nytimes.com/2018/01/01/opinion/ai-and-big-data-could-power-a-new-war-on-poverty.html', 'https://www.nytimes.com/2018/01/01/world/middleeast/israeli-jerusalem-west-bank.html', 'https://www.nytimes.com/2018/01/01/opinion/how-not-to-impeach.html', 'https://www.nytimes.com/2018/01/01/nyregion/metropolitan-diary-meeting-bill-murray.html', 'https://www.nytimes.com/2018/01/01/sports/hockey/winter-classic-rangers-sabres.html', 'https://www.nytimes.com/2018/01/01/science/calestous-juma-african-agriculture-dies.html', 'https://www.nytimes.com/2018/01/01/us/politics/trump-businesses-regulation-economic-growth.html', 'https://www.nytimes.com/2018/01/01/insider/lebanon-palestine-scoop-saad-hariri.html', 'https://www.nytimes.com/2018/01/01/opinion/online-shopping-sales-tax.html', 'https://www.nytimes.com/2018/01/01/opinion/was-america-duped-at-khe-sanh.html']
-
-
+    month_urls = ['https://www.nytimes.com/2018/01/02/science/donkeys-africa-china-ejiao.html', 'https://www.nytimes.com/2018/01/02/learning/new-years-resolutions.html', 'https://www.nytimes.com/2018/01/02/health/fake-news-conservative-liberal.html', 'https://www.nytimes.com/2018/01/02/world/asia/kim-jong-un-suit-north-korea.html', 'https://www.nytimes.com/2018/01/02/sports/college-football-playoff-alabama-clemson.html', 'https://www.nytimes.com/2018/01/02/learning/02WODLN.html', 'https://www.nytimes.com/2018/01/02/briefing/iran-north-korea-times-up.html', 'https://www.nytimes.com/2018/01/02/sports/soccer/premier-league-top-six.html', 'https://www.nytimes.com/2018/01/01/pageoneplus/no-corrections-january-2-2018.html', 'https://www.nytimes.com/2018/01/01/todayspaper/quotation-of-the-day-skittish-and-skulking-californias-fire-cats-prove-hard-to-corral.html', 'https://www.nytimes.com/2018/01/01/sports/isaiah-thomas-cavaliers.html', 'https://www.nytimes.com/2018/01/01/crosswords/daily-puzzle-2018-01-02.html', 'https://www.nytimes.com/2018/01/01/business/gretchen-carlson-miss-america.html', 'https://www.nytimes.com/2018/01/01/opinion/the-retreat-to-tribalism.html', 'https://www.nytimes.com/2018/01/01/sports/college-football-playoff-georgia-beats-oklahoma.html', 'https://www.nytimes.com/2018/01/01/opinion/bill-de-blasio-inauguration.html', 'https://www.nytimes.com/2018/01/01/science/ukraine-space-science.html', 'https://www.nytimes.com/2018/01/01/arts/dance/peter-martins-resigns-ballet.html', 'https://www.nytimes.com/2018/01/01/business/dealbook/biggest-deals-2017.html', 'https://www.nytimes.com/2018/01/01/world/americas/brazil-prison-riot.html', 'https://www.nytimes.com/2018/01/01/nyregion/park-or-playground-semantics-dispute-illuminates-preservationists-fight.html', 'https://www.nytimes.com/2018/01/01/nyregion/at-de-blasio-inaugural-speeches-by-two-who-might-replace-him.html', 'https://www.nytimes.com/2018/01/01/nyregion/weather-and-visiting-senator-steal-the-show-at-de-blasio-inauguration.html', 'https://www.nytimes.com/2018/01/01/world/americas/costa-rica-plane-crash.html', 'https://www.nytimes.com/2018/01/01/opinion/ai-and-big-data-could-power-a-new-war-on-poverty.html', 'https://www.nytimes.com/2018/01/01/world/middleeast/israeli-jerusalem-west-bank.html', 'https://www.nytimes.com/2018/01/01/opinion/how-not-to-impeach.html', 'https://www.nytimes.com/2018/01/01/nyregion/metropolitan-diary-meeting-bill-murray.html', 'https://www.nytimes.com/2018/01/01/sports/hockey/winter-classic-rangers-sabres.html', 'https://www.nytimes.com/2018/01/01/science/calestous-juma-african-agriculture-dies.html', 'https://www.nytimes.com/2018/01/01/us/politics/trump-businesses-regulation-economic-growth.html', 'https://www.nytimes.com/2018/01/01/insider/lebanon-palestine-scoop-saad-hariri.html', 'https://www.nytimes.com/2018/01/01/opinion/online-shopping-sales-tax.html', 'https://www.nytimes.com/2018/01/01/opinion/was-america-duped-at-khe-sanh.html'] 
 
 
     #month_urls = get_articles(api_key, year, month)
-    used_urls = get_used_urls(used_urls_csv)
+    list_used_urls = get_used_urls(used_urls_csv)
 
-    found_haiku = check_haiku(month_urls, used_urls)
+    found_haiku = check_haiku(month_urls, list_used_urls, used_urls_csv)
     print found_haiku
     print len(found_haiku)
     haiku_len = 0
